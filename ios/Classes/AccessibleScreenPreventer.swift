@@ -88,12 +88,27 @@ public class AccessibleScreenPreventer {
     public func enabledBlurScreen(style: UIBlurEffect.Style = UIBlurEffect.Style.light) {
         // Fix: Use window?.snapshotView instead of UIScreen.main.snapshotView
         // See: https://github.com/prongbang/screen_protector/issues/32
-        screenBlur = window?.snapshotView(afterScreenUpdates: false)
+        guard let w = window else { return }
+
+        // Create snapshot view - may return nil if window hasn't fully rendered yet
+        guard let snapshot = w.snapshotView(afterScreenUpdates: false) else {
+            // Fallback: Create a simple blur view covering the window instead
+            let fallbackBlur = UIView(frame: w.bounds)
+            let blurEffect = UIBlurEffect(style: style)
+            let blurBackground = UIVisualEffectView(effect: blurEffect)
+            blurBackground.frame = fallbackBlur.bounds
+            fallbackBlur.addSubview(blurBackground)
+            screenBlur = fallbackBlur
+            w.addSubview(fallbackBlur)
+            return
+        }
+
+        screenBlur = snapshot
         let blurEffect = UIBlurEffect(style: style)
         let blurBackground = UIVisualEffectView(effect: blurEffect)
-        screenBlur?.addSubview(blurBackground)
-        blurBackground.frame = (screenBlur?.frame)!
-        window?.addSubview(screenBlur!)
+        blurBackground.frame = snapshot.bounds
+        snapshot.addSubview(blurBackground)
+        w.addSubview(snapshot)
     }
 
     public func disableBlurScreen() {
@@ -115,12 +130,14 @@ public class AccessibleScreenPreventer {
     }
 
     public func enabledImageScreen(named: String) {
-        screenImage = UIImageView(frame: UIScreen.main.bounds)
-        screenImage?.image = UIImage(named: named)
-        screenImage?.isUserInteractionEnabled = false
-        screenImage?.contentMode = .scaleAspectFill
-        screenImage?.clipsToBounds = true
-        window?.addSubview(screenImage!)
+        guard let w = window else { return }
+        let imageView = UIImageView(frame: w.bounds)
+        imageView.image = UIImage(named: named)
+        imageView.isUserInteractionEnabled = false
+        imageView.contentMode = .scaleAspectFill
+        imageView.clipsToBounds = true
+        screenImage = imageView
+        w.addSubview(imageView)
     }
 
     public func disableImageScreen() {
